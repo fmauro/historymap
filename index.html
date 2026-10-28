@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HistoryMap</title>
+    <meta name="description" content="Who ruled where, and when: an interactive map of historical borders from prehistory to today." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <div id="map"></div>
+
+    <header class="topbar">
+      <div class="brand">HistoryMap</div>
+      <div class="search">
+        <input id="search-input" type="search" placeholder="Search empires, kingdoms, cultures…" autocomplete="off" />
+        <ul id="search-results" class="search-results" hidden></ul>
+      </div>
+    </header>
+
+    <aside id="info" class="info" hidden>
+      <button class="info-close" id="info-close" aria-label="Close">×</button>
+      <div id="info-body"></div>
+    </aside>
+
+    <div id="tooltip" class="tooltip" hidden></div>
+
+    <footer class="timeline">
+      <div class="timeline-controls">
+        <button id="play" class="btn btn-play" aria-label="Play">▶</button>
+        <select id="speed" class="speed" aria-label="Playback speed">
+          <option value="10">10 yr/s</option>
+          <option value="25" selected>25 yr/s</option>
+          <option value="50">50 yr/s</option>
+          <option value="100">100 yr/s</option>
+        </select>
+        <div class="steps">
+          <button class="btn" data-step="-100" title="Back 100 years">−100</button>
+          <button class="btn" data-step="-10" title="Back 10 years">−10</button>
+          <button class="btn" data-step="-1" title="Back 1 year">−1</button>
+        </div>
+        <input id="year-input" class="year-input" aria-label="Year" spellcheck="false" />
+        <div class="steps">
+          <button class="btn" data-step="1" title="Forward 1 year">+1</button>
+          <button class="btn" data-step="10" title="Forward 10 years">+10</button>
+          <button class="btn" data-step="100" title="Forward 100 years">+100</button>
+        </div>
+      </div>
+      <div class="slider-wrap">
+        <input id="slider" class="slider" type="range" min="0" max="10000" step="1" aria-label="Year slider" />
+        <div id="ticks" class="ticks"></div>
+      </div>
+    </footer>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
