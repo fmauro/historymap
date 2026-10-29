@@ -24,6 +24,7 @@ export interface SourceInfo {
   license: string;
   attribution: string;
   window: [number, number];
+  priority: number;
   features: number;
 }
 
@@ -43,8 +44,9 @@ export interface PolityTileProps {
   note?: string;
 }
 
-/** timeline.json: [from, to, pidIndex] for each polity shape; shape id = index + 1. */
+/** timeline.json: [from, to, pidIndex, area in 100 km²] for each polity shape; shape id = index + 1. */
 export interface TimelineData {
   pids: string[];
   f: number[];
 }
+export const TIMELINE_STRIDE = 4;

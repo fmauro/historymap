@@ -30,6 +30,8 @@ export const authoredFeature = z.object({
       overlord: z.string().optional(),
       partOf: z.string().optional(),
       note: z.string().optional(),
+      /** 1 = background shape (e.g. a way of life) drawn beneath tier-0 shapes, only filling their gaps. */
+      tier: z.number().int().min(0).max(3).optional(),
     })
     .refine((p) => p.from <= p.to, { message: 'from must be <= to' }),
   geometry,
@@ -70,6 +72,7 @@ export const authored: SourceAdapter = {
           overlord: p.overlord,
           partOf: p.partOf,
           note: p.note ?? 'Approximate extent, drawn by hand to fill a gap in the datasets.',
+          tier: p.tier,
           geometry: f.geometry,
         };
       }

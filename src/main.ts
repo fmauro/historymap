@@ -28,6 +28,7 @@ async function main() {
     globe: url.globe ?? false,
     modern: url.modern ?? false,
     timeline: timelineData,
+    sources,
     attribution: sources
       .filter((s) => s.features > 0)
       .map((s) => `${s.url ? `<a href="${s.url}" target="_blank" rel="noopener">${s.title}</a>` : s.title} (${s.license})`),

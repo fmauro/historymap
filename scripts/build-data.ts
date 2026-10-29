@@ -9,7 +9,8 @@ import { SOURCES } from '../sources.config';
 import { colorIndex } from '../src/palette';
 import type { PolityTileProps, SourceInfo } from '../src/types';
 import { buildBasemap } from './basemap';
-import { areaKm2, bounds, labelMinZoom, labelPoint } from './lib/geo';
+import { Coverage } from './lib/coverage';
+import { areaKm2, bounds, labelMinZoom } from './lib/geo';
 import { SearchIndexBuilder } from './lib/search-index';
 import { clipRange, mergeSlices } from './lib/snapshots';
 import type { NormalizedFeature } from './sources/types';
@@ -29,12 +30,14 @@ async function main() {
   const sourceInfo: SourceInfo[] = [];
   const problems: string[] = [];
   // Every polity shape gets a numeric id (1-based) so the app can switch it on/off with feature-state.
-  // timeline.json stores [from, to, pidIndex] per id; the app reads it to decide what is visible each year.
+  // timeline.json stores [from, to, pidIndex, area in 100 km²] per id; the app reads it to decide what is visible each year.
   const pidIndex = new Map<string, number>();
   const timeline: number[] = [];
   let nextId = 1;
+  // What higher-priority sources already cover, by time. Lower sources only fill the gaps.
+  const coverage = new Coverage();
 
-  for (const cfg of SOURCES.filter((s) => s.enabled)) {
+  for (const cfg of SOURCES.filter((s) => s.enabled).sort((a, b) => b.priority - a.priority)) {
     const adapter = ADAPTERS[cfg.id];
     if (!adapter) throw new Error(`No adapter registered for source "${cfg.id}"`);
     const ctx = { rawDir: join(RAW, cfg.id), window: cfg.window };
@@ -56,44 +59,65 @@ async function main() {
     }
     // Consecutive slices with an unchanged shape become one feature.
     const merged = mergeSlices(collected, (f) =>
-      [f.polityId, f.kind, f.overlord, f.partOf, createHash('md5').update(JSON.stringify(f.geometry)).digest('hex')].join('|'),
+      [f.polityId, f.kind, f.overlord, f.partOf, f.tier, createHash('md5').update(JSON.stringify(f.geometry)).digest('hex')].join('|'),
     );
     console.log(`[${cfg.id}] ${collected.length} slices → ${merged.length} after merging unchanged shapes`);
 
+    // Tiers are layered like sources: each one only fills what the ones above leave empty.
+    const tiers = [...new Set(merged.map((f) => f.tier ?? 0))].sort((a, b) => a - b);
     let count = 0;
-    for (const f of merged) {
-      const { from, to } = f;
-      const km2 = areaKm2(f.geometry);
-      const props: PolityTileProps = {
-        pid: f.polityId,
-        name: f.name,
-        from,
-        to,
-        src: f.source,
-        kind: f.kind,
-        conf: f.confidence,
-        prio: cfg.priority,
-        c: colorIndex(f.polityId),
-        ...(f.overlord && { ov: f.overlord }),
-        ...(f.partOf && { po: f.partOf }),
-        ...(f.note && { note: f.note }),
-      };
-      const id = nextId++;
-      if (!pidIndex.has(f.polityId)) pidIndex.set(f.polityId, pidIndex.size);
-      timeline.push(from, to, pidIndex.get(f.polityId)!);
-      writeSync(polFd, JSON.stringify({ type: 'Feature', id, properties: props, geometry: f.geometry }) + '\n');
-      writeSync(
-        labFd,
-        JSON.stringify({
-          type: 'Feature',
-          tippecanoe: { minzoom: labelMinZoom(km2) },
-          properties: { pid: f.polityId, name: f.name, from, to, kind: f.kind, src: f.source, area: Math.round(km2) },
-          geometry: { type: 'Point', coordinates: labelPoint(f.geometry) },
-        }) + '\n',
-      );
-      index.add(f.polityId, f.name, f.source, f.kind, { from, to, area: km2, bbox: bounds(f.geometry) }, f.wikipedia, f.wikidata);
-      count++;
+    let hidden = 0;
+    const hiddenAuthored: string[] = [];
+    for (const tier of tiers) {
+      const shapes = merged.filter((f) => (f.tier ?? 0) === tier);
+      const analysis = coverage.analyze(shapes);
+      shapes.forEach((f, i) => {
+        const { from, to } = f;
+        const a = analysis[i];
+        if (a.hidden) {
+          hidden++;
+          if (f.source === 'authored') hiddenAuthored.push(`${f.name} (${f.from}..${f.to})`);
+          return;
+        }
+        const km2 = areaKm2(f.geometry);
+        const props: PolityTileProps = {
+          pid: f.polityId,
+          name: f.name,
+          from,
+          to,
+          src: f.source,
+          kind: f.kind,
+          conf: f.confidence,
+          prio: cfg.priority - tier,
+          c: colorIndex(f.polityId),
+          ...(f.overlord && { ov: f.overlord }),
+          ...(f.partOf && { po: f.partOf }),
+          ...(f.note && { note: f.note }),
+        };
+        const id = nextId++;
+        if (!pidIndex.has(f.polityId)) pidIndex.set(f.polityId, pidIndex.size);
+        timeline.push(from, to, pidIndex.get(f.polityId)!, Math.round(km2 / 100));
+        writeSync(polFd, JSON.stringify({ type: 'Feature', id, properties: props, geometry: f.geometry }) + '\n');
+        // A shape partly hidden by higher sources can have several label spans, placed in its visible part.
+        for (const l of a.labels) {
+          writeSync(
+            labFd,
+            JSON.stringify({
+              type: 'Feature',
+              tippecanoe: { minzoom: labelMinZoom(l.km2) },
+              properties: { pid: f.polityId, name: f.name, from: l.from, to: l.to, kind: f.kind, src: f.source, area: Math.round(l.km2) },
+              geometry: { type: 'Point', coordinates: l.point },
+            }) + '\n',
+          );
+        }
+        index.add(f.polityId, f.name, f.source, f.kind, { from, to, area: km2, bbox: bounds(f.geometry) }, f.wikipedia, f.wikidata);
+        if (f.kind !== 'relation') coverage.add(f);
+        count++;
+      });
     }
+    if (hidden) console.log(`[${cfg.id}] ${hidden} shapes dropped: hidden under higher-priority sources`);
+    // Hand-drawn shapes are written on purpose, so say which ones never show.
+    if (hiddenAuthored.length) console.log(`  never visible: ${hiddenAuthored.join(', ')}`);
     console.log(`[${cfg.id}] ${count} features`);
     sourceInfo.push({
       id: adapter.id,
@@ -102,6 +126,7 @@ async function main() {
       license: adapter.license,
       attribution: adapter.attribution,
       window: cfg.window,
+      priority: cfg.priority,
       features: count,
     });
   }

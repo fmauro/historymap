@@ -31,15 +31,20 @@ Other scripts:
 
 ## Data sources
 
-| Source | Used for | License |
-|---|---|---|
-| [Cliopatria](https://github.com/Seshat-Global-History-Databank/cliopatria) (Seshat Global History Databank) | 3400 BCE – 2024 CE | CC BY 4.0 |
-| [historical-basemaps](https://github.com/aourednik/historical-basemaps) (André Ourednik et al.) | before 3400 BCE | GPL-3.0 |
-| `data/authored/` (this project) | hand-drawn gap filling, marked as approximate | GPL-3.0 |
-| [Natural Earth](https://www.naturalearthdata.com/) | land, water, rivers, modern borders | public domain |
+Sources are stacked like layers. Each one only shows where the ones above it have nothing at that time:
 
+| Priority | Source | What it adds | License |
+|---|---|---|---|
+| 1 | [Cliopatria](https://github.com/Seshat-Global-History-Databank/cliopatria) (Seshat Global History Databank) | States, 3400 BCE – 2024 CE | CC BY 4.0 |
+| 2 | [historical-basemaps](https://github.com/aourednik/historical-basemaps) (André Ourednik et al.) | States and peoples in ~50 snapshots, all eras | GPL-3.0 |
+| 3 | historical-basemaps, carried over | Peoples copied into neighbouring periods where that dataset is blank | GPL-3.0 |
+| 4 | `data/authored/` (this project) | ~140 hand-drawn cultures and peoples for the remaining gaps, mostly prehistory | GPL-3.0 |
+| – | [Natural Earth](https://www.naturalearthdata.com/) | Land, water, rivers, modern borders | public domain |
+
+Together they cover nearly all inhabited land from about 3000 BCE on (Cliopatria alone covers 15–20%).
 Borders before the modern era are approximations, often drawn by researchers from limited evidence.
-The info panel shows the source and a confidence badge for every shape.
+The info panel shows the source and a confidence badge for every shape; peoples and cultures are drawn paler
+than states, with italic labels, and hand-drawn shapes are hatched.
 
 ## How it works
 
@@ -48,13 +53,17 @@ format (`scripts/sources/types.ts`). `scripts/build-data.ts` then:
 
 1. cuts each source to its year window from `sources.config.ts`,
 2. merges consecutive time slices whose shape did not change,
-3. writes vector tiles with tippecanoe (`polities.pmtiles`, `labels.pmtiles`, `basemap.pmtiles`),
-4. writes `polities.json` (search and info index), `timeline.json` (years of every shape) and `sources.json`.
+3. goes through the sources from highest to lowest priority and checks each shape against what the higher
+   sources already cover at that time (`scripts/lib/coverage.ts`, on a 0.5° grid). Shapes that would be
+   completely hidden are dropped, and labels move into the part of a shape that stays visible,
+4. writes vector tiles with tippecanoe (`polities.pmtiles`, `labels.pmtiles`, `basemap.pmtiles`),
+5. writes `polities.json` (search and info index), `timeline.json` (years and size of every shape) and `sources.json`.
 
 **Run time** (`src/`): MapLibre GL draws the tiles straight from the static PMTiles files using
 HTTP range requests, so no tile server is needed. Every shape for every year is in the tiles. When the year
 changes, `map.ts` uses `timeline.json` to switch individual shapes on or off with MapLibre *feature-state*.
-That only updates colors on the GPU, so scrubbing stays smooth. Water is drawn on top of the polities,
+That only updates colors on the GPU, so scrubbing stays smooth. Fills are opaque (pre-blended with the land
+color), so a higher-priority source hides whatever lies beneath it. Water is drawn on top of the polities,
 so rough hand-drawn borders follow real coastlines.
 
 Years are integers: negative is BCE, and there is no year 0. All year logic lives in `src/years.ts`.
@@ -73,8 +82,12 @@ Years are integers: negative is BCE, and there is no year 0. All year logic live
 
 Files in `data/authored/*.geojson` are checked against a schema on build (`scripts/sources/authored.ts`).
 Each feature needs `name`, `from` and `to`; optional fields are `kind` (`culture` | `polity`),
-`confidence` (`low` | `medium`), `wikipedia`, `overlord`, `partOf` and `note`.
-These shapes are drawn hatched with dashed outlines, beneath the datasets.
+`confidence` (`low` | `medium`), `wikipedia`, `overlord`, `partOf`, `note` and `tier`.
+These shapes are drawn hatched with dashed outlines, beneath the datasets. Because they only show where
+nothing else is drawn, outlines can be generous: the parts that overlap better data stay hidden.
+`tier: 1` marks a background shape (a broad way of life such as "Mesolithic hunter-gatherers of Europe")
+that is drawn beneath the specific cultures of the same era. The build prints any hand-drawn shape that is
+never visible.
 
 ## Deploying
 

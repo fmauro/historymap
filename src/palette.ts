@@ -16,3 +16,11 @@ export function colorIndex(polityId: string): number {
   }
   return (h >>> 0) % PALETTE.length;
 }
+
+/** Blend two #rrggbb colors: t = 0 gives a, t = 1 gives b. */
+export function mix(a: string, b: string, t: number): string {
+  const ch = (hex: string, i: number) => parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16);
+  return `#${[0, 1, 2]
+    .map((i) => Math.round(ch(a, i) + (ch(b, i) - ch(a, i)) * t).toString(16).padStart(2, '0'))
+    .join('')}`;
+}

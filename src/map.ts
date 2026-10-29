@@ -1,11 +1,11 @@
 import * as maplibregl from 'maplibre-gl';
-import type { ExpressionSpecification, StyleSpecification } from 'maplibre-gl';
+import type { ExpressionSpecification, LayerSpecification, StyleSpecification } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 // MapLibre finds its worker relative to its own file, which breaks once Vite bundles it.
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
 import { Protocol } from 'pmtiles';
-import { PALETTE } from './palette';
-import type { TimelineData } from './types';
+import { PALETTE, mix } from './palette';
+import { TIMELINE_STRIDE as S, type SourceInfo, type TimelineData } from './types';
 
 const DATA = `${import.meta.env.BASE_URL}data`;
 const abs = (p: string) => new URL(p, window.location.href).href;
@@ -25,13 +25,59 @@ const ACTIVE: ExpressionSpecification = [
   ['>=', ['get', 'to'], ['global-state', 'year']],
 ];
 const NOT_RELATION: ExpressionSpecification = ['!=', ['get', 'kind'], 'relation'];
-const FILL_COLOR: ExpressionSpecification = ['to-color', ['at', ['get', 'c'], ['literal', PALETTE]]];
+const IS_CULTURE: ExpressionSpecification = ['==', ['get', 'kind'], 'culture'];
 
-export const POLITY_LAYERS = ['polities-fill', 'authored-fill'];
+// Fills are opaque, pre-blended with the land color. That way a higher-priority source fully hides
+// lower ones where they overlap, and lower sources only show in the gaps.
+const tint = (t: number): ExpressionSpecification => ['to-color', ['at', ['get', 'c'], ['literal', PALETTE.map((c) => mix(LAND, c, t))]]];
+const FILL_COLOR: ExpressionSpecification = [
+  'case',
+  IS_CULTURE, tint(0.34), // peoples and cultures: pale
+  ['==', ['get', 'conf'], 'low'], tint(0.5),
+  tint(0.62),
+];
+
+/** One group of layers per source, stacked by priority. */
+interface Group { src: string; prio: number }
+const fillId = (g: Group) => `fill-${g.src}`;
+
+function polityLayers(g: Group): LayerSpecification[] {
+  const base = { source: 'polities', 'source-layer': 'polities' } as const;
+  const mine: ExpressionSpecification = ['==', ['get', 'src'], g.src];
+  const hatched = g.src === 'authored';
+  return [
+    {
+      ...base, id: fillId(g), type: 'fill', filter: ['all', mine, NOT_RELATION],
+      layout: { 'fill-sort-key': ['get', 'prio'] }, // tiers within a source
+      paint: { 'fill-color': hatched ? tint(0.25) : FILL_COLOR, 'fill-opacity': ['case', ON, 1, 0], 'fill-antialias': false },
+    },
+    // Approximate, hand-drawn shapes get diagonal hatching on top of their tint.
+    ...(hatched
+      ? [{ ...base, id: `hatch-${g.src}`, type: 'fill', filter: mine, paint: { 'fill-pattern': 'hatch', 'fill-opacity': ['case', ON, 1, 0] } } as LayerSpecification]
+      : []),
+    {
+      ...base, id: `line-${g.src}`, type: 'line', filter: ['all', mine, NOT_RELATION],
+      paint: {
+        'line-opacity': ['case', ON, 1, 0],
+        'line-color': ['case', IS_CULTURE, 'rgba(70, 50, 25, 0.25)', 'rgba(70, 50, 25, 0.55)'],
+        'line-width': ['interpolate', ['linear'], ['zoom'], 1, 0.4, 6, 1.2],
+        ...(hatched && { 'line-dasharray': [3, 2] }),
+      },
+    },
+    {
+      ...base, id: `selected-${g.src}`, type: 'line', filter: mine,
+      paint: {
+        'line-opacity': ['case', SELECTED, 1, 0],
+        'line-color': '#8a2b0e',
+        'line-width': ['interpolate', ['linear'], ['zoom'], 1, 1.8, 6, 3.2],
+      },
+    },
+  ];
+}
 const MODERN_LAYERS = ['modern-borders', 'modern-labels'];
 const MODERN_INK = '#7a2e4d';
 
-function style(year: number): StyleSpecification {
+function style(year: number, groups: Group[]): StyleSpecification {
   return {
     version: 8,
     glyphs: 'https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf',
@@ -44,35 +90,7 @@ function style(year: number): StyleSpecification {
     layers: [
       { id: 'ocean', type: 'background', paint: { 'background-color': OCEAN } },
       { id: 'land', type: 'fill', source: 'basemap', 'source-layer': 'land', paint: { 'fill-color': LAND } },
-      {
-        id: 'authored-fill', type: 'fill', source: 'polities', 'source-layer': 'polities',
-        filter: ['==', ['get', 'src'], 'authored'],
-        paint: { 'fill-pattern': 'hatch', 'fill-opacity': ['case', ON, 0.9, 0] },
-      },
-      {
-        id: 'polities-fill', type: 'fill', source: 'polities', 'source-layer': 'polities',
-        filter: ['all', NOT_RELATION, ['!=', ['get', 'src'], 'authored']],
-        layout: { 'fill-sort-key': ['get', 'prio'] },
-        paint: { 'fill-color': FILL_COLOR, 'fill-opacity': ['case', ON, ['match', ['get', 'conf'], 'low', 0.45, 0.62], 0] },
-      },
-      {
-        id: 'polities-line', type: 'line', source: 'polities', 'source-layer': 'polities',
-        filter: NOT_RELATION,
-        paint: {
-          'line-opacity': ['case', ON, 1, 0],
-          'line-color': 'rgba(70, 50, 25, 0.55)',
-          'line-width': ['interpolate', ['linear'], ['zoom'], 1, 0.4, 6, 1.2],
-          'line-dasharray': ['match', ['get', 'src'], 'authored', ['literal', [3, 2]], ['literal', [1, 0]]],
-        },
-      },
-      {
-        id: 'selected-line', type: 'line', source: 'polities', 'source-layer': 'polities',
-        paint: {
-          'line-opacity': ['case', SELECTED, 1, 0],
-          'line-color': '#8a2b0e',
-          'line-width': ['interpolate', ['linear'], ['zoom'], 1, 1.8, 6, 3.2],
-        },
-      },
+      ...groups.flatMap(polityLayers),
       // Water is drawn over the polities so their (often rough) borders follow real coastlines.
       { id: 'ocean-mask', type: 'fill', source: 'basemap', 'source-layer': 'ocean', paint: { 'fill-color': OCEAN } },
       {
@@ -112,7 +130,7 @@ function style(year: number): StyleSpecification {
         filter: ['all', ACTIVE, NOT_RELATION],
         layout: {
           'text-field': ['get', 'name'],
-          'text-font': ['Noto Sans Medium'],
+          'text-font': ['case', IS_CULTURE, ['literal', ['Noto Sans Italic']], ['literal', ['Noto Sans Medium']]],
           'text-size': [
             'interpolate', ['linear'], ['zoom'],
             1, ['step', ['get', 'area'], 9, 300000, 10, 1500000, 12],
@@ -125,7 +143,7 @@ function style(year: number): StyleSpecification {
           'text-padding': 4,
         },
         paint: {
-          'text-color': ['case', ['==', ['get', 'src'], 'authored'], '#6b5536', INK],
+          'text-color': ['case', ['any', IS_CULTURE, ['==', ['get', 'src'], 'authored']], '#6b5536', INK],
           'text-halo-color': 'rgba(245, 238, 222, 0.85)',
           'text-halo-width': 1.4,
         },
@@ -140,9 +158,7 @@ function hatchImage(): ImageData {
   const c = document.createElement('canvas');
   c.width = c.height = size;
   const ctx = c.getContext('2d')!;
-  ctx.fillStyle = 'rgba(190, 150, 100, 0.18)';
-  ctx.fillRect(0, 0, size, size);
-  ctx.strokeStyle = 'rgba(140, 95, 45, 0.55)';
+  ctx.strokeStyle = 'rgba(140, 95, 45, 0.35)';
   ctx.lineWidth = 1.5;
   ctx.beginPath();
   for (const o of [-size, 0, size]) {
@@ -191,6 +207,7 @@ export interface MapOptions {
   globe: boolean;
   modern: boolean;
   timeline: TimelineData;
+  sources: SourceInfo[];
   attribution: string[];
   /** Called when the globe or modern-borders toggle changes. */
   onToggle?: () => void;
@@ -199,14 +216,22 @@ export interface MapOptions {
 const GLOBE_ICON = `<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="10" cy="10" r="7.5"/><ellipse cx="10" cy="10" rx="3.2" ry="7.5"/><path d="M2.5 10h15M4 6h12M4 14h12"/></svg>`;
 const BORDERS_ICON = `<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.4" stroke-dasharray="2.5 1.5"><path d="M3 4l5 2 4-2 5 2v10l-5-2-4 2-5-2z"/><path d="M8 6v10M12 4v10"/></svg>`;
 
+/** Fill layers that hold polity shapes, topmost first. Set when the map is created. */
+export let polityLayerIds: string[] = [];
+
 export function createMap(container: string, opts: MapOptions) {
   maplibregl.setWorkerUrl(workerUrl);
   const protocol = new Protocol();
   maplibregl.addProtocol('pmtiles', protocol.tile);
 
+  const groups = opts.sources
+    .filter((s) => s.features > 0)
+    .map((s) => ({ src: s.id, prio: s.priority }))
+    .sort((a, b) => a.prio - b.prio);
+  polityLayerIds = groups.map(fillId).reverse(); // topmost first
   const map = new maplibregl.Map({
     container,
-    style: style(opts.year),
+    style: style(opts.year, groups),
     center: opts.center,
     zoom: opts.zoom,
     minZoom: 0.5,
@@ -249,11 +274,11 @@ export function createMap(container: string, opts: MapOptions) {
 
   // Which polity shapes are on. Index i is feature id i + 1.
   const tl = opts.timeline;
-  const n = tl.f.length / 3;
+  const n = tl.f.length / S;
   const on = new Uint8Array(n);
   const idsByPid = new Map<string, number[]>();
   for (let i = 0; i < n; i++) {
-    const pid = tl.pids[tl.f[i * 3 + 2]];
+    const pid = tl.pids[tl.f[i * S + 2]];
     if (!idsByPid.has(pid)) idsByPid.set(pid, []);
     idsByPid.get(pid)!.push(i + 1);
   }
@@ -263,7 +288,7 @@ export function createMap(container: string, opts: MapOptions) {
 
   const applyYear = () => {
     for (let i = 0; i < n; i++) {
-      const active = tl.f[i * 3] <= year && year <= tl.f[i * 3 + 1] ? 1 : 0;
+      const active = tl.f[i * S] <= year && year <= tl.f[i * S + 1] ? 1 : 0;
       if (active !== on[i]) {
         on[i] = active;
         map.setFeatureState(target(i + 1), { on: active === 1 });

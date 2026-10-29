@@ -1,6 +1,6 @@
 import type { MapGeoJSONFeature, PointLike } from 'maplibre-gl';
 import type { HistoryMap } from './map';
-import { POLITY_LAYERS } from './map';
+import { polityLayerIds } from './map';
 import { PALETTE } from './palette';
 import { store } from './store';
 import type { PolityIndexEntry, PolityTileProps, SourceInfo } from './types';
@@ -39,11 +39,15 @@ export function initInfoPanel(hm: HistoryMap, polities: Map<string, PolityIndexE
     const seen = new Set<string>();
     const out: PolityTileProps[] = [];
     // Topmost first: higher-priority sources are drawn on top.
-    const feats = map.queryRenderedFeatures(point, { layers: POLITY_LAYERS }) as MapGeoJSONFeature[];
+    const feats = map.queryRenderedFeatures(point, { layers: polityLayerIds }) as MapGeoJSONFeature[];
+    let top = -Infinity;
     for (const f of feats.sort((a, b) => (b.properties.prio as number) - (a.properties.prio as number))) {
       const p = f.properties as PolityTileProps;
       // Shapes from other years are still on the map, just invisible.
       if (p.from > store.year || p.to < store.year || seen.has(p.pid)) continue;
+      // Lower-priority sources are hidden under the top one, so they aren't "here".
+      if (p.prio < top) break;
+      top = p.prio;
       seen.add(p.pid);
       out.push(p);
     }
