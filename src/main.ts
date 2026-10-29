@@ -1,4 +1,5 @@
 import './style.css';
+import { initAbout } from './about';
 import { initInfoPanel } from './infoPanel';
 import { createMap } from './map';
 import { initMoments } from './moments';
@@ -40,6 +41,8 @@ async function main() {
   initInfoPanel(hm, byId, sources, timelineData);
   initSearch(hm, polities, timeline.stop);
   initMoments(hm, timeline.stop);
+  initAbout(sources);
+  hm.map.once('idle', () => document.getElementById('loading')?.remove());
 
   // Year changes: coalesce to one map update per frame so fast scrubbing stays smooth.
   let frame = 0;
@@ -76,8 +79,6 @@ async function main() {
 
 main().catch((e) => {
   console.error(e);
-  document.body.insertAdjacentHTML(
-    'beforeend',
-    `<div style="position:absolute;inset:0;display:grid;place-items:center;font:16px system-ui">Could not load map data. Run <code>npm run build:data</code> first.</div>`,
-  );
+  const el = document.getElementById('loading');
+  if (el) el.innerHTML = `<div class="loading-inner">Could not load the map data.<br><small>Developers: run <code>npm run build:data</code> first.</small></div>`;
 });
