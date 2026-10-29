@@ -1,6 +1,7 @@
 import './style.css';
 import { initInfoPanel } from './infoPanel';
 import { createMap } from './map';
+import { initMoments } from './moments';
 import { initSearch } from './search';
 import { store } from './store';
 import { initTimeline } from './timeline';
@@ -38,6 +39,7 @@ async function main() {
   const timeline = initTimeline();
   initInfoPanel(hm, byId, sources, timelineData);
   initSearch(hm, polities, timeline.stop);
+  initMoments(hm, timeline.stop);
 
   // Year changes: coalesce to one map update per frame so fast scrubbing stays smooth.
   let frame = 0;

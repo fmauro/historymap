@@ -54,6 +54,39 @@ button, input, select { font: inherit; color: inherit; }
 .search-results .r-name { font-weight: 500; }
 .search-results .r-years { color: var(--ink-soft); font-size: 12px; white-space: nowrap; }
 
+/* Moments */
+.moments { position: relative; pointer-events: auto; }
+.topbtn {
+  padding: 10px 14px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel);
+  box-shadow: var(--shadow); cursor: pointer; font-weight: 500;
+}
+.topbtn:hover, .topbtn[aria-expanded='true'] { border-color: var(--accent); }
+.moments-list {
+  position: absolute; top: calc(100% + 6px); left: 0; width: 300px; margin: 0; padding: 4px; list-style: none;
+  background: var(--panel); border-radius: 10px; box-shadow: var(--shadow); max-height: 65vh; overflow-y: auto;
+}
+.moment-item {
+  display: grid; grid-template-columns: 88px 1fr; gap: 8px; width: 100%; text-align: left;
+  border: 0; background: none; padding: 7px 10px; border-radius: 7px; cursor: pointer;
+}
+.moment-item:hover { background: var(--accent-soft); }
+.m-year { color: var(--accent); font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+.moment-card {
+  position: absolute; z-index: 4; top: 70px; left: 50%; transform: translateX(-50%); width: min(560px, calc(100% - 24px));
+  display: flex; align-items: center; gap: 6px; padding: 10px 34px 10px 8px;
+  background: var(--panel); border-radius: 12px; box-shadow: var(--shadow);
+}
+.mc-body { flex: 1; min-width: 0; }
+.mc-title { font: 700 19px/1.2 var(--serif); margin-bottom: 2px; }
+.mc-title .m-year { font: 600 13px var(--sans); margin-right: 4px; }
+.mc-caption { font-size: 13px; color: var(--ink-soft); }
+.mc-nav { border: 0; background: none; font-size: 26px; line-height: 1; padding: 4px 8px; cursor: pointer; color: var(--accent); border-radius: 8px; }
+.mc-nav:hover:not(:disabled) { background: var(--accent-soft); }
+.mc-nav:disabled { opacity: 0.3; cursor: default; }
+.mc-close { position: absolute; top: 4px; right: 8px; border: 0; background: none; font-size: 20px; cursor: pointer; color: var(--ink-soft); }
+/* Keep the card clear of the info panel on wide screens. */
+@media (min-width: 1100px) { .moment-card { left: calc(50% + 200px); width: min(520px, calc(100% - 440px)); } }
+
 /* Info panel */
 .info {
   position: absolute; z-index: 3; top: 70px; left: 12px; width: min(380px, calc(100% - 24px));
@@ -159,5 +192,7 @@ button, input, select { font: inherit; color: inherit; }
   .steps .btn:first-child { display: none; }
   .year-input { width: 130px; font-size: 22px; }
   .info { top: auto; bottom: 150px; max-height: 45vh; left: 8px; width: calc(100% - 16px); }
+  .moment-card { top: 62px; }
+  .topbtn { padding: 10px 10px; }
   .ticks span:nth-child(even) { display: none; }
 }
