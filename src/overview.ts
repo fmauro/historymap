@@ -51,7 +51,7 @@ export function initOverview(hm: HistoryMap, polities: Map<string, PolityIndexEn
         if (!entry) return;
         stopPlayback();
         const [w, s, e, nn] = entry.peakBbox;
-        store.select({ pid: entry.id, lngLat: [(w + e) / 2, (s + nn) / 2] });
+        store.select({ pid: entry.id, lngLat: entry.peakPoint ?? [(w + e) / 2, (s + nn) / 2] });
         hm.map.fitBounds([[w, s], [e, nn]], { padding: 80, maxZoom: 5, duration: 1000 });
       }),
     );

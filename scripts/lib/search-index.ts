@@ -2,7 +2,7 @@ import { addYears } from '../../src/years';
 import type { PolityIndexEntry } from '../../src/types';
 import type { BBox } from './geo';
 
-interface Slice { from: number; to: number; area: number; bbox: BBox }
+interface Slice { from: number; to: number; area: number; bbox: BBox; point: [number, number] }
 
 interface Acc {
   name: string;
@@ -53,6 +53,7 @@ export class SearchIndexBuilder {
         spans,
         peakYear: mid,
         peakBbox: peak.bbox.map((n) => Math.round(n * 100) / 100) as BBox,
+        peakPoint: peak.point.map((n) => Math.round(n * 100) / 100) as [number, number],
         maxArea: Math.round(peak.area),
       });
     }

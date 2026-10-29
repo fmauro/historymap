@@ -13,6 +13,8 @@ export interface PolityIndexEntry {
   /** Year and bounds of its largest extent. */
   peakYear: number;
   peakBbox: [number, number, number, number];
+  /** A point inside the largest extent (for selecting it). */
+  peakPoint: [number, number];
   maxArea: number;
 }
 

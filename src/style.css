@@ -54,6 +54,8 @@ button, input, select { font: inherit; color: inherit; }
 .search-results li[aria-selected='true'], .search-results li:hover { background: var(--accent-soft); }
 .search-results .r-name { font-weight: 500; }
 .search-results .r-years { color: var(--ink-soft); font-size: 12px; white-space: nowrap; }
+.search-results .r-name.culture { font-style: italic; }
+.search-results .r-goto .r-name { color: var(--accent); font-weight: 600; }
 
 /* Loading screen */
 .loading { position: absolute; inset: 0; z-index: 20; display: grid; place-items: center; background: var(--bg); transition: opacity 0.3s; }

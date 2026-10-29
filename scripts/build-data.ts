@@ -10,7 +10,7 @@ import { colorIndex } from '../src/palette';
 import type { PolityTileProps, SourceInfo } from '../src/types';
 import { buildBasemap } from './basemap';
 import { Coverage } from './lib/coverage';
-import { areaKm2, bounds, labelMinZoom } from './lib/geo';
+import { areaKm2, bounds, labelMinZoom, labelPoint } from './lib/geo';
 import { SearchIndexBuilder } from './lib/search-index';
 import { clipRange, mergeSlices } from './lib/snapshots';
 import type { NormalizedFeature } from './sources/types';
@@ -118,7 +118,12 @@ async function main() {
             );
           }
         }
-        index.add(f.polityId, f.name, f.source, f.kind, { from, to, area: km2, bbox: bounds(f.geometry) }, f.wikipedia, f.wikidata);
+        const inside = (a.labels.find((l) => l.full) ?? a.labels[0])?.point ?? labelPoint(f.geometry);
+        index.add(
+          f.polityId, f.name, f.source, f.kind,
+          { from, to, area: km2, bbox: bounds(f.geometry), point: inside as [number, number] },
+          f.wikipedia, f.wikidata,
+        );
         if (f.kind !== 'relation') coverage.add(f);
         count++;
       });
