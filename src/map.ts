@@ -18,6 +18,7 @@ const INK = '#3b2f1e';
 // Changing a filter would make MapLibre re-process every heavy polity tile (~0.5 s per year step).
 const ON: ExpressionSpecification = ['boolean', ['feature-state', 'on'], false];
 const SELECTED: ExpressionSpecification = ['all', ON, ['boolean', ['feature-state', 'sel'], false]];
+const HOVERED: ExpressionSpecification = ['all', ON, ['boolean', ['feature-state', 'hover'], false]];
 /** Labels are light points in their own tileset, so a plain year filter on them is cheap. */
 const ACTIVE: ExpressionSpecification = [
   'all',
@@ -67,7 +68,7 @@ function polityLayers(g: Group): LayerSpecification[] {
     {
       ...base, id: `selected-${g.src}`, type: 'line', filter: mine,
       paint: {
-        'line-opacity': ['case', SELECTED, 1, 0],
+        'line-opacity': ['case', SELECTED, 1, HOVERED, 0.45, 0],
         'line-color': '#8a2b0e',
         'line-width': ['interpolate', ['linear'], ['zoom'], 1, 1.8, 6, 3.2],
       },
@@ -285,6 +286,10 @@ export function createMap(container: string, opts: MapOptions) {
   const target = (id: number) => ({ source: 'polities', sourceLayer: 'polities', id });
   let year = opts.year;
   let selected: string | null = null;
+  let hovered: string | null = null;
+  const mark = (pid: string | null, state: 'sel' | 'hover', value: boolean) => {
+    for (const id of (pid && idsByPid.get(pid)) || []) map.setFeatureState(target(id), { [state]: value });
+  };
 
   const applyYear = () => {
     for (let i = 0; i < n; i++) {
@@ -313,9 +318,15 @@ export function createMap(container: string, opts: MapOptions) {
     },
     setSelected(pid: string | null) {
       if (pid === selected) return;
-      for (const id of (selected && idsByPid.get(selected)) || []) map.setFeatureState(target(id), { sel: false });
+      mark(selected, 'sel', false);
       selected = pid;
-      for (const id of (pid && idsByPid.get(pid)) || []) map.setFeatureState(target(id), { sel: true });
+      mark(pid, 'sel', true);
+    },
+    setHovered(pid: string | null) {
+      if (pid === hovered) return;
+      mark(hovered, 'hover', false);
+      hovered = pid;
+      mark(pid, 'hover', true);
     },
   };
 }

@@ -24,6 +24,8 @@ export interface LabelSpan {
   point: Position;
   /** Visible area in km², drives label size and min zoom. */
   km2: number;
+  /** Nothing covers the shape during this span, so every part of it can be labelled. */
+  full: boolean;
 }
 
 export interface Analysis {
@@ -130,7 +132,7 @@ export class Coverage {
 
     return shapes.map((s, i) => {
       const rs = results[i];
-      if (!rs.length) return { hidden: false, labels: [{ from: s.from, to: s.to, point: pointOf(i), km2: totalKm2[i] }] };
+      if (!rs.length) return { hidden: false, labels: [{ from: s.from, to: s.to, point: pointOf(i), km2: totalKm2[i], full: true }] };
       const hidden = rs.every((r) => r.covered >= HIDDEN_SHARE || (r.covered >= 0.5 && r.freeKm2 < HIDDEN_REST_KM2));
       const labels: LabelSpan[] = [];
       rs.forEach((r, k) => {
@@ -138,22 +140,21 @@ export class Coverage {
         const from = samples[i][k];
         const to = k + 1 < rs.length ? addYears(samples[i][k + 1], -1) : s.to;
         const prev = labels[labels.length - 1];
-        if (prev && prev.point === r.point && addYears(prev.to, 1) === from) {
+        const full = r.covered === 0;
+        if (prev && prev.point === r.point && prev.full === full && addYears(prev.to, 1) === from) {
           prev.to = to;
           prev.km2 = Math.max(prev.km2, r.freeKm2);
-        } else labels.push({ from, to, point: r.point, km2: r.freeKm2 });
+        } else labels.push({ from, to, point: r.point, km2: r.freeKm2, full });
       });
       return { hidden, labels };
     });
   }
 
   /**
-   * Where to label the uncovered part of a shape (this.mask holds the covered cells).
-   * Picks the free cell farthest from covered or outside ground, but keeps a preferred point
-   * (the usual label spot, or last sample's) when it is still well inside the free part, so labels
-   * don't jump around between samples.
+   * Distance (in cells, 8-neighbour) from each cell of a shape to the nearest cell that is outside it
+   * or blocked, over the shape's bounding box plus a one-cell margin.
    */
-  private placeLabel(cells: Int32Array, preferred: Array<Position | null>, mostlyFree: boolean): Position | null {
+  private distanceField(cells: Int32Array, blocked: (cell: number) => boolean) {
     const g = this.grid;
     let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
     for (const c of cells) {
@@ -163,16 +164,12 @@ export class Coverage {
       if (y < y0) y0 = y;
       if (y > y1) y1 = y;
     }
-    const lw = x1 - x0 + 3, lh = y1 - y0 + 3; // one cell of margin on each side
-    const dist = new Int32Array(lw * lh); // 0 = blocked (outside or covered)
-    const queue: number[] = [];
+    const lw = x1 - x0 + 3, lh = y1 - y0 + 3;
+    const dist = new Int32Array(lw * lh); // 0 = blocked or outside
     const INF = 1 << 30;
-    for (const c of cells) {
-      if (this.mask[c]) continue;
-      dist[((c / g.w | 0) - y0 + 1) * lw + (c % g.w) - x0 + 1] = INF;
-    }
+    for (const c of cells) if (!blocked(c)) dist[(((c / g.w) | 0) - y0 + 1) * lw + (c % g.w) - x0 + 1] = INF;
+    const queue: number[] = [];
     for (let k = 0; k < dist.length; k++) if (dist[k] === 0) queue.push(k);
-    // Multi-source BFS (8 neighbours) from blocked cells: distance to the nearest blocked cell.
     for (let q = 0; q < queue.length; q++) {
       const k = queue[q];
       const kx = k % lw, ky = (k / lw) | 0;
@@ -188,6 +185,26 @@ export class Coverage {
         }
       }
     }
+    const local = (p: Position) => {
+      const c = g.cellOf(p[0], p[1]);
+      const lx = (c % g.w) - x0 + 1, ly = ((c / g.w) | 0) - y0 + 1;
+      return lx < 0 || ly < 0 || lx >= lw || ly >= lh ? -1 : ly * lw + lx;
+    };
+    const center = (k: number): Position => {
+      const bx = (k % lw) + x0 - 1, by = ((k / lw) | 0) + y0 - 1;
+      return [Math.round((-180 + (bx + 0.5) * g.res) * 1e3) / 1e3, Math.round((90 - (by + 0.5) * g.res) * 1e3) / 1e3];
+    };
+    return { dist, lw, local, center };
+  }
+
+  /**
+   * Where to label the uncovered part of a shape (this.mask holds the covered cells).
+   * Picks the free cell farthest from covered or outside ground, but keeps a preferred point
+   * (the usual label spot, or last sample's) when it is still well inside the free part, so labels
+   * don't jump around between samples.
+   */
+  private placeLabel(cells: Int32Array, preferred: Array<Position | null>, mostlyFree: boolean): Position | null {
+    const { dist, local, center } = this.distanceField(cells, (c) => this.mask[c] === 1);
     let best = -1, bestD = 0;
     for (let k = 0; k < dist.length; k++) {
       if (dist[k] > bestD) {
@@ -198,13 +215,41 @@ export class Coverage {
     if (best < 0 || (bestD < MIN_CLEARANCE && !mostlyFree)) return null;
     for (const p of preferred) {
       if (!p) continue;
-      const c = g.cellOf(p[0], p[1]);
-      const lx = (c % g.w) - x0 + 1, ly = ((c / g.w) | 0) - y0 + 1;
-      if (lx < 0 || ly < 0 || lx >= lw || ly >= lh) continue;
-      const d = dist[ly * lw + lx];
-      if (d >= Math.max(1, bestD * 0.6)) return p;
+      const k = local(p);
+      if (k >= 0 && dist[k] >= Math.max(1, bestD * 0.6)) return p;
     }
-    const bx = (best % lw) + x0 - 1, by = ((best / lw) | 0) + y0 - 1;
-    return [Math.round((-180 + (bx + 0.5) * g.res) * 1e3) / 1e3, Math.round((90 - (by + 0.5) * g.res) * 1e3) / 1e3];
+    return center(best);
+  }
+
+  /**
+   * Extra label spots for a big shape, far away from its main label: one per region that is wide
+   * in its own right (an empire stretching from the Balkans to Egypt gets one in Anatolia too).
+   */
+  spreadLabels(g: Polygon | MultiPolygon, main: Position, max = 3): Array<{ point: Position; km2: number }> {
+    const cells = this.cellsOf(g, () => main);
+    if (cells.length < 60) return [];
+    const { dist, lw, local, center } = this.distanceField(cells, () => false);
+    const picked: Array<{ k: number; d: number }> = [];
+    const mk = local(main);
+    let top = 0;
+    for (let k = 0; k < dist.length; k++) top = Math.max(top, dist[k]);
+    if (mk >= 0) picked.push({ k: mk, d: Math.max(dist[mk], top) });
+    const far = (k: number, d: number) =>
+      picked.every((p) => {
+        const dx = (k % lw) - (p.k % lw), dy = ((k / lw) | 0) - ((p.k / lw) | 0);
+        return Math.hypot(dx, dy) > Math.max(10, 2.5 * Math.max(d, p.d));
+      });
+    const order = [...dist.keys()].filter((k) => dist[k] >= 3).sort((a, b) => dist[b] - dist[a]);
+    const out: Array<{ point: Position; km2: number }> = [];
+    for (const k of order) {
+      if (out.length >= max) break;
+      const d = dist[k];
+      if (d < Math.max(3, top * 0.45)) break;
+      if (!far(k, d)) continue;
+      picked.push({ k, d });
+      const side = d * this.grid.res * 111;
+      out.push({ point: center(k), km2: Math.round(side * side * 3) });
+    }
+    return out;
   }
 }

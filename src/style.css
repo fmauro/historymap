@@ -56,7 +56,7 @@ button, input, select { font: inherit; color: inherit; }
 
 /* Info panel */
 .info {
-  position: absolute; z-index: 3; top: 70px; left: 12px; width: min(360px, calc(100% - 24px));
+  position: absolute; z-index: 3; top: 70px; left: 12px; width: min(380px, calc(100% - 24px));
   max-height: calc(100% - 70px - 130px); overflow-y: auto;
   background: var(--panel); border-radius: 12px; box-shadow: var(--shadow); padding: 18px 18px 16px;
 }
@@ -89,6 +89,29 @@ button, input, select { font: inherit; color: inherit; }
   border: 1px solid var(--line); background: none; cursor: pointer; font-size: 13px;
 }
 .chip:hover { border-color: var(--accent); }
+/* Info panel sections: size chart, history of this place */
+.info .section { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 10px; }
+.section-title { font-size: 12px; font-weight: 600; letter-spacing: 0.03em; color: var(--ink-soft); margin-bottom: 6px; }
+.section-title .muted { font-weight: 400; }
+.size-chart { display: block; width: 100%; height: 54px; cursor: crosshair; }
+.now-line { stroke: var(--accent); stroke-width: 1.5; }
+.chart-axis { display: flex; justify-content: space-between; font-size: 11px; color: var(--ink-soft); margin-top: 2px; }
+.band { position: relative; height: 14px; border-radius: 4px; background: var(--accent-soft); overflow: hidden; margin-bottom: 8px; }
+.band-seg { position: absolute; top: 0; bottom: 0; padding: 0; border: 0; border-right: 1px solid var(--panel); cursor: pointer; }
+.band-seg.culture { opacity: 0.6; }
+.band-seg:hover { filter: brightness(0.85); }
+.band-now { position: absolute; top: -2px; bottom: -2px; width: 2px; margin-left: -1px; background: var(--ink); pointer-events: none; }
+.place-list { list-style: none; margin: 0; padding: 0; max-height: 190px; overflow-y: auto; }
+.place-item {
+  display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 0 4px; width: 100%;
+  border: 0; background: none; padding: 3px 6px; border-radius: 6px; cursor: pointer; text-align: left; font-size: 13px;
+}
+.place-item:hover { background: var(--accent-soft); }
+.place-list li.now .place-item { background: var(--accent-soft); font-weight: 600; }
+.place-list li.sel .place-name { text-decoration: underline; text-decoration-color: var(--accent); text-underline-offset: 3px; }
+.place-name.culture { font-style: italic; }
+.place-years { color: var(--ink-soft); font-size: 12px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
 .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
 
 /* Hover tooltip */

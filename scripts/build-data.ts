@@ -99,16 +99,23 @@ async function main() {
         timeline.push(from, to, pidIndex.get(f.polityId)!, Math.round(km2 / 100));
         writeSync(polFd, JSON.stringify({ type: 'Feature', id, properties: props, geometry: f.geometry }) + '\n');
         // A shape partly hidden by higher sources can have several label spans, placed in its visible part.
+        // Fully visible spans also label the shape's other big parts.
+        const fullSpan = a.labels.find((l) => l.full);
+        const extra = fullSpan ? coverage.spreadLabels(f.geometry, fullSpan.point) : [];
         for (const l of a.labels) {
-          writeSync(
-            labFd,
-            JSON.stringify({
-              type: 'Feature',
-              tippecanoe: { minzoom: labelMinZoom(l.km2) },
-              properties: { pid: f.polityId, name: f.name, from: l.from, to: l.to, kind: f.kind, src: f.source, area: Math.round(l.km2) },
-              geometry: { type: 'Point', coordinates: l.point },
-            }) + '\n',
-          );
+          const spots = [{ point: l.point, km2: l.km2, extra: false }, ...(l.full ? extra.map((e) => ({ ...e, extra: true })) : [])];
+          for (const { point, km2, extra: isExtra } of spots) {
+            writeSync(
+              labFd,
+              JSON.stringify({
+                type: 'Feature',
+                // Extra labels repeat the name, so they wait until the map is zoomed in a little.
+                tippecanoe: { minzoom: isExtra ? Math.max(3, labelMinZoom(km2) + 1) : labelMinZoom(km2) },
+                properties: { pid: f.polityId, name: f.name, from: l.from, to: l.to, kind: f.kind, src: f.source, area: Math.round(km2) },
+                geometry: { type: 'Point', coordinates: point },
+              }) + '\n',
+            );
+          }
         }
         index.add(f.polityId, f.name, f.source, f.kind, { from, to, area: km2, bbox: bounds(f.geometry) }, f.wikipedia, f.wikidata);
         if (f.kind !== 'relation') coverage.add(f);

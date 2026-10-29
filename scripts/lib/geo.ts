@@ -14,6 +14,14 @@ export function bounds(g: Polygon | MultiPolygon): BBox {
   return bbox(g) as BBox;
 }
 
+/** Pole of inaccessibility of one polygon part. */
+function partLabel(rings: Position[][]): Position {
+  const [minX, minY, maxX, maxY] = bbox({ type: 'Polygon', coordinates: rings });
+  const precision = Math.max(0.001, Math.min(maxX - minX, maxY - minY) / 100);
+  const pt = polylabel(rings as [number, number][][], precision);
+  return [Math.round(pt[0] * 1e5) / 1e5, Math.round(pt[1] * 1e5) / 1e5];
+}
+
 /** Best label position: pole of inaccessibility of the largest part. */
 export function labelPoint(g: Polygon | MultiPolygon): Position {
   const parts = g.type === 'Polygon' ? [g.coordinates] : g.coordinates;
@@ -26,10 +34,7 @@ export function labelPoint(g: Polygon | MultiPolygon): Position {
       best = p;
     }
   }
-  const [minX, minY, maxX, maxY] = bbox({ type: 'Polygon', coordinates: best });
-  const precision = Math.max(0.001, Math.min(maxX - minX, maxY - minY) / 100);
-  const pt = polylabel(best as [number, number][][], precision);
-  return [Math.round(pt[0] * 1e5) / 1e5, Math.round(pt[1] * 1e5) / 1e5];
+  return partLabel(best);
 }
 
 /** Zoom at which a label of this size starts to show. */

@@ -36,7 +36,7 @@ async function main() {
   });
 
   const timeline = initTimeline();
-  initInfoPanel(hm, byId, sources);
+  initInfoPanel(hm, byId, sources, timelineData);
   initSearch(hm, polities, timeline.stop);
 
   // Year changes: coalesce to one map update per frame so fast scrubbing stays smooth.
