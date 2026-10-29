@@ -36,12 +36,13 @@ export interface Analysis {
   labels: LabelSpan[];
 }
 
-/** How often (in years) visibility is re-checked within a long-lived shape. */
-const STEP = 25;
-/** Hidden if at least this share is covered at every sample... */
-const HIDDEN_SHARE = 0.75;
-/** ...or if at least half is covered and the visible rest is this small (km²). */
-const HIDDEN_REST_KM2 = 50_000;
+/**
+ * How often (in years) visibility is re-checked within a long-lived shape. A higher-priority shape that
+ * lives less than this between two samples can be missed; 10 years keeps that rare and the build fast.
+ */
+const STEP = 10;
+/** Hidden if, at every sample, at least half of it is covered and the visible rest is this small (km²). */
+const HIDDEN_REST_KM2 = 150_000;
 /** Labels need this many cells (~55 km each) of clearance from covered ground, unless mostly visible. */
 const MIN_CLEARANCE = 2;
 
@@ -135,7 +136,8 @@ export class Coverage {
     return shapes.map((s, i) => {
       const rs = results[i];
       if (!rs.length) return { hidden: false, visibleShare: 1, labels: [{ from: s.from, to: s.to, point: pointOf(i), km2: totalKm2[i], full: true }] };
-      const hidden = rs.every((r) => r.covered >= HIDDEN_SHARE || (r.covered >= 0.5 && r.freeKm2 < HIDDEN_REST_KM2));
+      // A big shape that is mostly covered can still show a large area, so the visible rest decides.
+      const hidden = rs.every((r) => r.covered >= 0.5 && r.freeKm2 < HIDDEN_REST_KM2);
       const labels: LabelSpan[] = [];
       rs.forEach((r, k) => {
         if (!r.point) return;

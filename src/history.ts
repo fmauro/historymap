@@ -1,6 +1,9 @@
 // Time-based summaries for the info panel: who held a place over time, and how a polity's size changed.
 import { TIMELINE_STRIDE as S, type TimelineData } from './types';
-import { addYears } from './years';
+
+/** Next / previous year, skipping year 0 but without clamping to the map's range. */
+const next = (y: number) => (y === -1 ? 1 : y + 1);
+const prev = (y: number) => (y === 1 ? -1 : y - 1);
 
 export interface PlaceShape {
   pid: string;
@@ -33,7 +36,7 @@ export function placeHistory(shapes: PlaceShape[]): Segment[] {
   const starts = new Set<number>();
   for (const s of shapes) {
     starts.add(s.from);
-    starts.add(addYears(s.to, 1));
+    starts.add(next(s.to));
   }
   const bounds = [...starts].sort((a, b) => a - b);
   const better = (a: PlaceShape, b: PlaceShape) =>
@@ -41,12 +44,12 @@ export function placeHistory(shapes: PlaceShape[]): Segment[] {
   const out: Segment[] = [];
   for (let i = 0; i + 1 < bounds.length; i++) {
     const from = bounds[i];
-    const to = addYears(bounds[i + 1], -1);
+    const to = prev(bounds[i + 1]);
     let top: PlaceShape | null = null;
     for (const s of shapes) if (s.from <= from && s.to >= to && (!top || better(s, top))) top = s;
     if (!top) continue;
     const last = out[out.length - 1];
-    if (last && last.pid === top.pid && addYears(last.to, 1) === from) last.to = to;
+    if (last && last.pid === top.pid && next(last.to) === from) last.to = to;
     else out.push({ pid: top.pid, name: top.name, from, to, kind: top.kind, c: top.c });
   }
   return out;

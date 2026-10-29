@@ -98,7 +98,7 @@ never visible.
 ## Deploying
 
 `npm run build` produces a fully static `dist/` folder. Any static host that supports HTTP range
-requests works (GitHub Pages, Netlify, S3, nginx). The polity tile file is about 56 MB, so a host must allow
+requests works (GitHub Pages, Netlify, S3, nginx). The polity tile file is about 85 MB, so a host must allow
 files that large. Cloudflare Pages, for example, caps files at 25 MB.
 
 Generated data is not committed (`public/data/` is gitignored), so a deploy pipeline needs to run

@@ -279,6 +279,9 @@ export function createMap(container: string, opts: MapOptions) {
     theme = t;
     if (map.hasImage('hatch')) map.updateImage('hatch', hatchImage(t.hatch));
     map.setStyle(style(year, groups, t), { diff: true });
+    // The diff resets what the toggles changed at runtime, and fires no style.load.
+    applyProjection();
+    applyModern();
     if (ready) map.setGlobalStateProperty('year', year);
   });
 

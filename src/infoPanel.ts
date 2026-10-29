@@ -167,7 +167,7 @@ export function initInfoPanel(hm: HistoryMap, polities: Map<string, PolityIndexE
         .map((f) => f.properties as PolityTileProps)
         .find((p) => p.from <= store.year && p.to >= store.year));
     const name = current?.name ?? entry?.name ?? sel.pid;
-    const color = PALETTE[current?.c ?? 0];
+    const color = PALETTE[current?.c ?? entry?.c ?? 0];
     const source = sources.find((s) => s.id === (current?.src ?? entry?.sources[0]));
     const spans = entry?.spans.map(([a, b]) => formatRange(a, b)) ?? [];
     const kind = current?.kind ?? entry?.kinds[0] ?? 'polity';

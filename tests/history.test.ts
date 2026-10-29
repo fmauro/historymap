@@ -44,3 +44,10 @@ describe('areaSeries', () => {
     expect(s.every((p) => p.year !== 0)).toBe(true);
   });
 });
+
+describe('placeHistory at the end of the timeline', () => {
+  it('keeps the last year', () => {
+    const out = placeHistory([shape('a', 1900, 2024)]);
+    expect(out[0].to).toBe(2024);
+  });
+});

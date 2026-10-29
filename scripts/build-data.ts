@@ -68,6 +68,7 @@ async function main() {
     console.log(`[${cfg.id}] ${collected.length} slices → ${merged.length} after merging unchanged shapes`);
 
     // Tiers are layered like sources: each one only fills what the ones above leave empty.
+    // Their priority stays within the source's band (30 → 30, 29.99, …), above the next source.
     const tiers = [...new Set(merged.map((f) => f.tier ?? 0))].sort((a, b) => a - b);
     let count = 0;
     let hidden = 0;
@@ -92,7 +93,7 @@ async function main() {
           src: f.source,
           kind: f.kind,
           conf: f.confidence,
-          prio: cfg.priority - tier,
+          prio: cfg.priority - tier / 100,
           c: colorIndex(f.polityId),
           ...(f.overlord && { ov: f.overlord }),
           ...(f.partOf && { po: f.partOf }),
@@ -130,7 +131,7 @@ async function main() {
         );
         if (f.kind !== 'relation') {
           coverage.add(f);
-          colorPlanner.add(f.polityId, from, to, cfg.priority - tier, f.geometry);
+          colorPlanner.add(f.polityId, from, to, cfg.priority - tier / 100, f.geometry);
         }
         count++;
       });
