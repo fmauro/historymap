@@ -239,6 +239,14 @@ kbd { font: 12px var(--sans); padding: 1px 6px; border: 1px solid var(--line); b
 .ov-bar span { display: block; height: 100%; }
 .overview .muted { color: var(--ink-soft); margin: 0; }
 
+/* Toast */
+.toast {
+  position: absolute; z-index: 30; left: 50%; top: 18px; transform: translate(-50%, -8px); opacity: 0;
+  background: var(--ink); color: var(--bg); padding: 7px 14px; border-radius: 999px; font-size: 13px;
+  pointer-events: none; transition: opacity 0.2s, transform 0.2s;
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+
 /* MapLibre overrides */
 .maplibregl-map .maplibregl-ctrl-attrib { font-size: 11px; }
 /* Below the top bar on narrow screens; the top bar leaves the corner free on wide ones. */

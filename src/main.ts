@@ -5,6 +5,7 @@ import { createMap } from './map';
 import { initMoments } from './moments';
 import { initOverview } from './overview';
 import { initSearch } from './search';
+import { ShareControl } from './share';
 import { store } from './store';
 import { initTimeline } from './timeline';
 import type { PolityIndexEntry, SourceInfo, TimelineData } from './types';
@@ -37,6 +38,8 @@ async function main() {
       .map((s) => `${s.url ? `<a href="${s.url}" target="_blank" rel="noopener">${s.title}</a>` : s.title} (${s.license})`),
     onToggle: () => syncUrl(),
   });
+
+  hm.map.addControl(new ShareControl(), 'top-right');
 
   const timeline = initTimeline();
   initInfoPanel(hm, byId, sources, timelineData);
