@@ -16,6 +16,9 @@ const abs = (p: string) => new URL(p, window.location.href).href;
 const ON: ExpressionSpecification = ['boolean', ['feature-state', 'on'], false];
 const SELECTED: ExpressionSpecification = ['all', ON, ['boolean', ['feature-state', 'sel'], false]];
 const HOVERED: ExpressionSpecification = ['all', ON, ['boolean', ['feature-state', 'hover'], false]];
+const HIGHLIGHT: ExpressionSpecification = ['any', SELECTED, HOVERED];
+/** '#rrggbb' → 'rgba(r, g, b, a)'. */
+const withAlpha = (hex: string, a: number) => `rgba(${[1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(', ')}, ${a})`;
 /** Labels are light points in their own tileset, so a plain year filter on them is cheap. */
 const ACTIVE: ExpressionSpecification = [
   'all',
@@ -53,21 +56,15 @@ function polityLayers(g: Group, th: Theme): LayerSpecification[] {
     ...(hatched
       ? [{ ...base, id: `hatch-${g.src}`, type: 'fill', filter: mine, paint: { 'fill-pattern': 'hatch', 'fill-opacity': ['case', ON, 1, 0] } } as LayerSpecification]
       : []),
+    // Borders, plus the hover and selection outline through feature-state. A separate outline layer
+    // would hold a second copy of every border line (~40% of all map geometry).
     {
       ...base, id: `line-${g.src}`, type: 'line', filter: ['all', mine, NOT_RELATION],
       paint: {
         'line-opacity': ['case', ON, 1, 0],
-        'line-color': ['case', IS_CULTURE, th.borderCulture, th.border],
-        'line-width': ['interpolate', ['linear'], ['zoom'], 1, 0.4, 6, 1.2],
+        'line-color': ['case', SELECTED, th.selected, HOVERED, withAlpha(th.selected, 0.55), IS_CULTURE, th.borderCulture, th.border],
+        'line-width': ['interpolate', ['linear'], ['zoom'], 1, ['case', HIGHLIGHT, 1.8, 0.4], 6, ['case', HIGHLIGHT, 3.2, 1.2]],
         ...(hatched && { 'line-dasharray': [3, 2] }),
-      },
-    },
-    {
-      ...base, id: `selected-${g.src}`, type: 'line', filter: mine,
-      paint: {
-        'line-opacity': ['case', SELECTED, 1, HOVERED, 0.45, 0],
-        'line-color': th.selected,
-        'line-width': ['interpolate', ['linear'], ['zoom'], 1, 1.8, 6, 3.2],
       },
     },
   ];
@@ -168,6 +165,38 @@ function hatchImage(color: string): ImageData {
 }
 
 /** A map button that toggles something on and off. */
+/**
+ * How finely globe mode cuts geometry so it can bend around the sphere: the number of pieces per
+ * tile side at zoom 0, halved per zoom level. MapLibre's defaults (fill 128, line 512) assume
+ * ordinary tiles, but our low-zoom tiles hold every shape of every year at once, and the defaults
+ * triple that geometry, which crashed iOS browsers. Our shapes already have many points, so coarser
+ * cuts look the same.
+ */
+export const GLOBE_GRANULARITY = { fill: 64, line: 128 };
+
+/** Swaps in coarser globe cuts. Uses MapLibre internals, so it does nothing if they change. */
+function lightenGlobe(map: maplibregl.Map) {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const globe = (map.style as any)?.projection?._verticalPerspectiveProjection;
+    if (!globe || Object.prototype.hasOwnProperty.call(globe, 'subdivisionGranularity')) return;
+    const base = globe.subdivisionGranularity;
+    const Setting = base?.constructor;
+    const Expression = base?.fill?.constructor;
+    if (!Setting || !Expression || typeof base.fill.getGranularityForZoomLevel !== 'function') return;
+    const lighter = new Setting({
+      fill: new Expression(GLOBE_GRANULARITY.fill, 1),
+      line: new Expression(GLOBE_GRANULARITY.line, 0),
+      tile: base.tile,
+      stencil: base.stencil,
+      circle: base.circle,
+    });
+    Object.defineProperty(globe, 'subdivisionGranularity', { get: () => lighter, configurable: true });
+  } catch {
+    // Keep MapLibre's defaults.
+  }
+}
+
 export class ToggleControl implements maplibregl.IControl {
   private el!: HTMLDivElement;
   constructor(
@@ -243,6 +272,8 @@ export function createMap(container: string, opts: MapOptions) {
 
   let globe = opts.globe;
   let modern = opts.modern;
+  // Fires after the new projection is in place and before its tiles reload.
+  map.on('projectiontransition', () => lightenGlobe(map));
   const applyProjection = () => map.setProjection({ type: globe ? 'globe' : 'mercator' });
   const applyModern = () => {
     for (const id of MODERN_LAYERS) map.setLayoutProperty(id, 'visibility', modern ? 'visible' : 'none');
