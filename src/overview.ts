@@ -1,14 +1,14 @@
 // "Largest states" popover: the biggest states in the current year, updated as the year changes.
-import type { HistoryMap } from './map';
+import { ToggleControl, type HistoryMap } from './map';
 import { PALETTE, colorIndex } from './palette';
 import { store } from './store';
 import { TIMELINE_STRIDE as S, type PolityIndexEntry, type TimelineData } from './types';
 import { formatYear } from './years';
 
 const COUNT = 10;
+const ICON = `<svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><rect x="1" y="2" width="14" height="2.4" rx="1"/><rect x="1" y="6.8" width="10" height="2.4" rx="1"/><rect x="1" y="11.6" width="6" height="2.4" rx="1"/></svg>`;
 
 export function initOverview(hm: HistoryMap, polities: Map<string, PolityIndexEntry>, tl: TimelineData, stopPlayback: () => void) {
-  const button = document.getElementById('overview-btn') as HTMLButtonElement;
   const box = document.getElementById('overview')!;
   const n = tl.f.length / S;
   // Only states: peoples and cultures are not "powers", and their areas are very rough.
@@ -57,11 +57,13 @@ export function initOverview(hm: HistoryMap, polities: Map<string, PolityIndexEn
     );
   };
 
-  button.addEventListener('click', () => {
-    box.hidden = !box.hidden;
-    button.setAttribute('aria-pressed', String(!box.hidden));
-    render();
-  });
+  hm.map.addControl(
+    new ToggleControl(ICON, 'Largest states this year', () => !box.hidden, (on) => {
+      box.hidden = !on;
+      render();
+    }),
+    'top-right',
+  );
   // Throttled: scrubbing fires many year changes.
   let timer = 0;
   store.on('year', () => {

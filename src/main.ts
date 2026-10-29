@@ -34,7 +34,8 @@ async function main() {
     timeline: timelineData,
     sources,
     attribution: sources
-      .filter((s) => s.features > 0)
+      // One credit per dataset: the carried-over historical-basemaps layer is the same data.
+      .filter((s, i, all) => s.features > 0 && (!s.url || all.findIndex((o) => o.url === s.url && o.features > 0) === i))
       .map((s) => `${s.url ? `<a href="${s.url}" target="_blank" rel="noopener">${s.title}</a>` : s.title} (${s.license})`),
     onToggle: () => syncUrl(),
   });

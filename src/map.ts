@@ -168,7 +168,7 @@ function hatchImage(color: string): ImageData {
 }
 
 /** A map button that toggles something on and off. */
-class ToggleControl implements maplibregl.IControl {
+export class ToggleControl implements maplibregl.IControl {
   private el!: HTMLDivElement;
   constructor(
     private icon: string,
@@ -267,9 +267,6 @@ export function createMap(container: string, opts: MapOptions) {
     applyProjection();
     applyModern();
   });
-  // Start with the attribution folded into its (i) button: the full text would cover the timeline on
-  // small screens, and the About dialog lists the sources too.
-  map.once('load', () => map.getContainer().querySelector('.maplibregl-ctrl-attrib')?.classList.remove('maplibregl-compact-show'));
   map.on('styleimagemissing', (e) => {
     if (e.id === 'hatch' && !map.hasImage('hatch')) map.addImage('hatch', hatchImage(theme.hatch), { pixelRatio: 2 });
   });
