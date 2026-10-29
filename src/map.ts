@@ -11,7 +11,6 @@ import { TIMELINE_STRIDE as S, type SourceInfo, type TimelineData } from './type
 const DATA = `${import.meta.env.BASE_URL}data`;
 const abs = (p: string) => new URL(p, window.location.href).href;
 
-
 // Polity shapes are switched on per year with feature-state ("on"), which only updates paint.
 // Changing a filter would make MapLibre re-process every heavy polity tile (~0.5 s per year step).
 const ON: ExpressionSpecification = ['boolean', ['feature-state', 'on'], false];
@@ -73,6 +72,7 @@ function polityLayers(g: Group, th: Theme): LayerSpecification[] {
     },
   ];
 }
+
 const MODERN_LAYERS = ['modern-borders', 'modern-labels'];
 
 function style(year: number, groups: Group[], th: Theme): StyleSpecification {
