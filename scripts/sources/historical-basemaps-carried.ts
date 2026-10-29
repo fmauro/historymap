@@ -3,6 +3,7 @@ import { MAX_YEAR, MIN_YEAR, addYears, formatYear } from '../../src/years';
 import { isLifeway } from '../lib/classify';
 import { clipRange } from '../lib/snapshots';
 import { HB_ID, historicalBasemaps, plan, snapshotFeatures } from './historical-basemaps';
+import { applyFix } from './historical-basemaps-fixes';
 import type { NormalizedFeature, SourceAdapter, SourceContext } from './types';
 
 // historical-basemaps is a series of snapshots, and a people drawn in one snapshot is sometimes
@@ -55,7 +56,7 @@ export const historicalBasemapsCarried: SourceAdapter = {
             const range = carried && clipRange(carried, ctx.window);
             if (!range) continue;
             any = true;
-            yield {
+            const carriedFeature = applyFix({
               ...f,
               from: range[0],
               to: range[1],
@@ -63,7 +64,8 @@ export const historicalBasemapsCarried: SourceAdapter = {
               confidence: 'low',
               tier: k - 1,
               note: `historical-basemaps leaves this area blank here, so its ${formatYear(snap.year)} map is shown. Treat it as a rough guide.`,
-            };
+            });
+            if (carriedFeature) yield carriedFeature;
           }
         }
         if (!any) break;

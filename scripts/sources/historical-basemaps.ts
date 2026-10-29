@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { FeatureCollection, MultiPolygon, Polygon } from 'geojson';
 import { looksLikeCulture } from '../lib/classify';
+import { applyFix } from './historical-basemaps-fixes';
 import { clipRange, snapshotsToIntervals } from '../lib/snapshots';
 import { download, slug, wikiTitleFromUrl } from '../lib/util';
 import type { NormalizedFeature, SourceAdapter, SourceContext } from './types';
@@ -75,6 +76,11 @@ export const historicalBasemaps: SourceAdapter = {
   },
 
   async *normalize(ctx: SourceContext): AsyncIterable<NormalizedFeature> {
-    for (const e of plan(ctx.rawDir, ctx.window)) yield* snapshotFeatures(ctx.rawDir, e);
+    for (const e of plan(ctx.rawDir, ctx.window)) {
+      for (const f of snapshotFeatures(ctx.rawDir, e)) {
+        const fixed = applyFix(f);
+        if (fixed) yield fixed;
+      }
+    }
   },
 };
