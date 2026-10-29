@@ -1,6 +1,7 @@
 // Curated moments: a short guided tour through the map. Each sets the year and view, and selects a polity.
 import type { HistoryMap } from './map';
 import { store } from './store';
+import { yearToT } from './timescale';
 import { formatYear } from './years';
 
 interface Moment {
@@ -82,6 +83,15 @@ export function initMoments(hm: HistoryMap, stopPlayback: () => void) {
     card.querySelectorAll<HTMLButtonElement>('.mc-nav').forEach((b) => b.addEventListener('click', () => show(current + Number(b.dataset.d))));
     card.querySelector('.mc-close')!.addEventListener('click', () => (card.hidden = true));
   };
+
+  // Little markers above the slider: hover for the title, click to jump there.
+  const marks = document.createElement('div');
+  marks.className = 'moment-marks';
+  marks.innerHTML = sorted
+    .map((m, i) => `<button class="moment-mark" data-i="${i}" style="left:${yearToT(m.year) * 100}%" title="${formatYear(m.year)}: ${m.title}" aria-label="${m.title}"></button>`)
+    .join('');
+  document.querySelector('.slider-wrap')!.appendChild(marks);
+  marks.querySelectorAll<HTMLButtonElement>('.moment-mark').forEach((b) => b.addEventListener('click', () => show(Number(b.dataset.i))));
 
   list.querySelectorAll<HTMLButtonElement>('.moment-item').forEach((b) =>
     b.addEventListener('click', () => {

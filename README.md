@@ -3,10 +3,15 @@
 An interactive world map of who ruled where, and when. Drag the time slider from 123,000 BCE to today
 and watch empires, kingdoms and cultures rise and fall. The focus is on history before 1000 CE.
 
-- Click a region for its name, years, source and a Wikipedia summary.
-- Search for a polity ("Han dynasty", "Achaemenid") to jump to its largest extent.
+- Click a region for its name, years, source, a Wikipedia summary, a chart of its size over time,
+  and the **history of that place**: every state or people that held the spot, in order.
+- **Moments**: a guided tour of 21 turning points, from the first Americans to the Mongols
+  (also marked on the timeline).
+- **Largest**: the ten biggest states in the current year, updated as you scrub.
+- Search for a polity ("Han dynasty", "Achaemenid") to jump to its largest extent, or type a year ("500 bc").
 - Press play (or space) to animate through time. Use ← / → to step one year (Shift: 10, Alt: 100).
 - Toggle a globe view and an overlay of today's country borders for orientation.
+- Light and dark map themes follow the system setting. Press `?` for the legend and shortcuts.
 - The URL keeps the year, view and selection, so any view can be shared.
 
 ## Getting started
@@ -28,6 +33,7 @@ Other scripts:
 | `npm run build` | Static production build in `dist/` |
 | `npm run preview` | Serve `dist/` locally |
 | `npm run build:data -- --no-basemap` | Rebuild polity data only, keep the existing basemap |
+| `npx tsx scripts/tile-stats.ts` | Print the size of a few representative tiles |
 
 ## Data sources
 
@@ -36,9 +42,9 @@ Sources are stacked like layers. Each one only shows where the ones above it hav
 | Priority | Source | What it adds | License |
 |---|---|---|---|
 | 1 | [Cliopatria](https://github.com/Seshat-Global-History-Databank/cliopatria) (Seshat Global History Databank) | States, 3400 BCE – 2024 CE | CC BY 4.0 |
-| 2 | [historical-basemaps](https://github.com/aourednik/historical-basemaps) (André Ourednik et al.) | States and peoples in ~50 snapshots, all eras | GPL-3.0 |
+| 2 | [historical-basemaps](https://github.com/aourednik/historical-basemaps) (André Ourednik et al.) | States and peoples in ~50 snapshots, all eras (a few early anachronisms are corrected in `scripts/sources/historical-basemaps-fixes.ts`) | GPL-3.0 |
 | 3 | historical-basemaps, carried over | Peoples copied into neighbouring periods where that dataset is blank | GPL-3.0 |
-| 4 | `data/authored/` (this project) | ~140 hand-drawn cultures and peoples for the remaining gaps, mostly prehistory | GPL-3.0 |
+| 4 | `data/authored/` (this project) | ~150 hand-drawn cultures and peoples for the remaining gaps, mostly prehistory | GPL-3.0 |
 | – | [Natural Earth](https://www.naturalearthdata.com/) | Land, water, rivers, modern borders | public domain |
 
 Together they cover nearly all inhabited land from about 3000 BCE on (Cliopatria alone covers 15–20%).

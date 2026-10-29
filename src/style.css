@@ -212,6 +212,14 @@ kbd { font: 12px var(--sans); padding: 1px 6px; border: 1px solid var(--line); b
 .ticks span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
 .ticks span::before { content: ''; position: absolute; left: 50%; top: -5px; height: 4px; border-left: 1px solid var(--line); }
 
+/* Moment markers above the slider track */
+.moment-marks { position: absolute; left: 0; right: 0; top: -5px; height: 0; pointer-events: none; }
+.moment-mark {
+  position: absolute; width: 7px; height: 7px; margin-left: -3.5px; padding: 0; border: 0; border-radius: 1px;
+  background: var(--accent); opacity: 0.55; transform: rotate(45deg); cursor: pointer; pointer-events: auto;
+}
+.moment-mark:hover { opacity: 1; transform: rotate(45deg) scale(1.4); }
+
 /* Largest states popover */
 .btn-overview { display: inline-flex; align-items: center; gap: 5px; height: 32px; }
 .btn-overview[aria-pressed='true'] { border-color: var(--accent); color: var(--accent); }
