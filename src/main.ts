@@ -3,6 +3,7 @@ import { initAbout } from './about';
 import { initInfoPanel } from './infoPanel';
 import { createMap } from './map';
 import { initMoments } from './moments';
+import { initOverview } from './overview';
 import { initSearch } from './search';
 import { store } from './store';
 import { initTimeline } from './timeline';
@@ -42,6 +43,7 @@ async function main() {
   initSearch(hm, polities, timeline.stop);
   initMoments(hm, timeline.stop);
   initAbout(sources);
+  initOverview(hm, byId, timelineData, timeline.stop);
   hm.map.once('idle', () => document.getElementById('loading')?.remove());
 
   // Year changes: coalesce to one map update per frame so fast scrubbing stays smooth.

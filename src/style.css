@@ -210,6 +210,25 @@ kbd { font: 12px var(--sans); padding: 1px 6px; border: 1px solid var(--line); b
 .ticks span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
 .ticks span::before { content: ''; position: absolute; left: 50%; top: -5px; height: 4px; border-left: 1px solid var(--line); }
 
+/* Largest states popover */
+.btn-overview { display: inline-flex; align-items: center; gap: 5px; height: 32px; }
+.btn-overview[aria-pressed='true'] { border-color: var(--accent); color: var(--accent); }
+.overview {
+  position: absolute; bottom: calc(100% + 8px); left: 0; width: min(340px, 100%); padding: 12px 14px;
+  background: var(--panel); border-radius: 12px; box-shadow: var(--shadow);
+}
+.ov-title { font: 700 18px var(--serif); margin-bottom: 6px; }
+.ov-list { list-style: none; margin: 0; padding: 0; }
+.ov-item {
+  display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; width: 100%; padding: 4px 6px; border: 0;
+  background: none; border-radius: 6px; cursor: pointer; text-align: left; font-size: 13px;
+}
+.ov-item:hover { background: var(--accent-soft); }
+.ov-area { color: var(--ink-soft); font-size: 12px; font-variant-numeric: tabular-nums; }
+.ov-bar { grid-column: 1 / -1; height: 4px; border-radius: 2px; background: var(--accent-soft); overflow: hidden; }
+.ov-bar span { display: block; height: 100%; }
+.overview .muted { color: var(--ink-soft); margin: 0; }
+
 /* MapLibre overrides */
 .maplibregl-map .maplibregl-ctrl-attrib { font-size: 11px; }
 /* Below the top bar on narrow screens; the top bar leaves the corner free on wide ones. */
@@ -231,6 +250,7 @@ kbd { font: 12px var(--sans); padding: 1px 6px; border: 1px solid var(--line); b
   .brand { display: none; }
   .timeline { left: 8px; right: 8px; bottom: 24px; padding: 8px 10px 4px; }
   .steps .btn:first-child { display: none; }
+  .btn-overview span { display: none; }
   .year-input { width: 130px; font-size: 22px; }
   .info { top: auto; bottom: 150px; max-height: 45vh; left: 8px; width: calc(100% - 16px); }
   .moment-card { top: 62px; }

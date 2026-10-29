@@ -30,7 +30,7 @@ async function main() {
   const sourceInfo: SourceInfo[] = [];
   const problems: string[] = [];
   // Every polity shape gets a numeric id (1-based) so the app can switch it on/off with feature-state.
-  // timeline.json stores [from, to, pidIndex, area in 100 km²] per id; the app reads it to decide what is visible each year.
+  // timeline.json stores [from, to, pidIndex, visible area in 100 km²] per id; the app reads it to decide what is visible each year.
   const pidIndex = new Map<string, number>();
   const timeline: number[] = [];
   let nextId = 1;
@@ -96,7 +96,8 @@ async function main() {
         };
         const id = nextId++;
         if (!pidIndex.has(f.polityId)) pidIndex.set(f.polityId, pidIndex.size);
-        timeline.push(from, to, pidIndex.get(f.polityId)!, Math.round(km2 / 100));
+        // Visible area: the part not hidden under higher-priority sources (used for size charts and rankings).
+        timeline.push(from, to, pidIndex.get(f.polityId)!, Math.round((km2 * a.visibleShare) / 100));
         writeSync(polFd, JSON.stringify({ type: 'Feature', id, properties: props, geometry: f.geometry }) + '\n');
         // A shape partly hidden by higher sources can have several label spans, placed in its visible part.
         // Fully visible spans also label the shape's other big parts.

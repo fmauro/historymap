@@ -31,6 +31,8 @@ export interface LabelSpan {
 export interface Analysis {
   /** The shape is (almost) entirely hidden under higher-priority shapes for its whole life. */
   hidden: boolean;
+  /** Average share of the shape that is not covered by higher-priority shapes (0..1). */
+  visibleShare: number;
   labels: LabelSpan[];
 }
 
@@ -132,7 +134,7 @@ export class Coverage {
 
     return shapes.map((s, i) => {
       const rs = results[i];
-      if (!rs.length) return { hidden: false, labels: [{ from: s.from, to: s.to, point: pointOf(i), km2: totalKm2[i], full: true }] };
+      if (!rs.length) return { hidden: false, visibleShare: 1, labels: [{ from: s.from, to: s.to, point: pointOf(i), km2: totalKm2[i], full: true }] };
       const hidden = rs.every((r) => r.covered >= HIDDEN_SHARE || (r.covered >= 0.5 && r.freeKm2 < HIDDEN_REST_KM2));
       const labels: LabelSpan[] = [];
       rs.forEach((r, k) => {
@@ -146,7 +148,8 @@ export class Coverage {
           prev.km2 = Math.max(prev.km2, r.freeKm2);
         } else labels.push({ from, to, point: r.point, km2: r.freeKm2, full });
       });
-      return { hidden, labels };
+      const visibleShare = rs.reduce((a, r) => a + 1 - r.covered, 0) / rs.length;
+      return { hidden, visibleShare, labels };
     });
   }
 
