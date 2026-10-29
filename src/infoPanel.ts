@@ -266,9 +266,12 @@ export function initInfoPanel(hm: HistoryMap, polities: Map<string, PolityIndexE
     store.select(hit ? { pid: hit.pid, lngLat: [e.lngLat.lng, e.lngLat.lat] } : null);
   });
 
-  // Hover: tooltip with the name, and a light outline around the shape.
+  // Hover: tooltip with the name, and a light outline around the shape. Not on touch screens,
+  // where a tap would leave the tooltip behind.
+  const canHover = window.matchMedia?.('(hover: hover)').matches ?? true;
   let pending = false;
   map.on('mousemove', (e) => {
+    if (!canHover) return;
     if (pending) return;
     pending = true;
     requestAnimationFrame(() => {
