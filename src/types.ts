@@ -16,6 +16,8 @@ export interface PolityIndexEntry {
   /** A point inside the largest extent (for selecting it). */
   peakPoint: [number, number];
   maxArea: number;
+  /** Palette index, chosen so neighbours differ. */
+  c: number;
 }
 
 /** One entry per source in sources.json. */

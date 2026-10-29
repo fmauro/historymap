@@ -37,7 +37,7 @@ export function initOverview(hm: HistoryMap, polities: Map<string, PolityIndexEn
         .map(([p, km2]) => {
           const pid = tl.pids[p];
           const name = polities.get(pid)?.name ?? pid;
-          const color = PALETTE[colorIndex(pid)];
+          const color = PALETTE[polities.get(pid)?.c ?? colorIndex(pid)];
           return `<li><button class="ov-item" data-pid="${pid}">
             <span class="ov-name">${name.replace(/</g, '&lt;')}</span>
             <span class="ov-area">${km2 >= 1e6 ? `${(km2 / 1e6).toFixed(1)}M` : `${Math.round(km2 / 1e3)}k`} km²</span>

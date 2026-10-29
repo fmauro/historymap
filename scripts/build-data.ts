@@ -3,12 +3,14 @@
 //   npm run build:data -- --no-basemap skip the basemap if it already exists
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { closeSync, existsSync, mkdirSync, openSync, writeFileSync, writeSync } from 'node:fs';
+import { closeSync, createReadStream, existsSync, mkdirSync, openSync, renameSync, writeFileSync, writeSync } from 'node:fs';
+import { createInterface } from 'node:readline';
 import { join } from 'node:path';
 import { SOURCES } from '../sources.config';
 import { colorIndex } from '../src/palette';
 import type { PolityTileProps, SourceInfo } from '../src/types';
 import { buildBasemap } from './basemap';
+import { ColorPlanner } from './lib/colors';
 import { Coverage } from './lib/coverage';
 import { areaKm2, bounds, labelMinZoom, labelPoint } from './lib/geo';
 import { SearchIndexBuilder } from './lib/search-index';
@@ -36,6 +38,8 @@ async function main() {
   let nextId = 1;
   // What higher-priority sources already cover, by time. Lower sources only fill the gaps.
   const coverage = new Coverage();
+  // Neighbouring polities get different colors; decided once all shapes are known.
+  const colorPlanner = new ColorPlanner();
 
   for (const cfg of SOURCES.filter((s) => s.enabled).sort((a, b) => b.priority - a.priority)) {
     const adapter = ADAPTERS[cfg.id];
@@ -124,7 +128,10 @@ async function main() {
           { from, to, area: km2, bbox: bounds(f.geometry), point: inside as [number, number] },
           f.wikipedia, f.wikidata,
         );
-        if (f.kind !== 'relation') coverage.add(f);
+        if (f.kind !== 'relation') {
+          coverage.add(f);
+          colorPlanner.add(f.polityId, from, to, cfg.priority - tier, f.geometry);
+        }
         count++;
       });
     }
@@ -150,7 +157,12 @@ async function main() {
     console.warn(`${problems.length} features skipped:\n  ${problems.slice(0, 20).join('\n  ')}`);
   }
 
-  const polities = index.build();
+  // Colors: the shapes were written with their hashed color; rewrite with the planned one.
+  const { colors, clashBefore, clashAfter } = colorPlanner.assign();
+  console.log(`colors: how alike neighbours look ${(clashBefore * 100).toFixed(1)}% → ${(clashAfter * 100).toFixed(1)}%`);
+  await recolor(join(BUILD, 'polities.ndjson'), colors);
+
+  const polities = index.build().map((p) => ({ ...p, c: colors.get(p.id) ?? colorIndex(p.id) }));
   writeFileSync(join(OUT, 'polities.json'), JSON.stringify(polities));
   writeFileSync(join(OUT, 'sources.json'), JSON.stringify(sourceInfo, null, 2));
   writeFileSync(join(OUT, 'timeline.json'), JSON.stringify({ pids: [...pidIndex.keys()], f: timeline }));
@@ -182,6 +194,20 @@ async function main() {
     await buildBasemap(join(RAW, 'natural-earth'), BUILD, basemap);
   }
   console.log('done.');
+}
+
+/** Replace the color index ("c") of every feature in an ndjson file. */
+async function recolor(file: string, colors: Map<string, number>) {
+  const tmp = `${file}.tmp`;
+  const fd = openSync(tmp, 'w');
+  for await (const line of createInterface({ input: createReadStream(file) })) {
+    if (!line) continue;
+    const pid = /"pid":"([^"]*)"/.exec(line)?.[1];
+    const c = pid !== undefined ? colors.get(pid) : undefined;
+    writeSync(fd, (c === undefined ? line : line.replace(/"c":\d+/, `"c":${c}`)) + '\n');
+  }
+  closeSync(fd);
+  renameSync(tmp, file);
 }
 
 main().catch((e) => {

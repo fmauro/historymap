@@ -30,8 +30,8 @@ export class SearchIndexBuilder {
     acc.slices.push(slice);
   }
 
-  build(): PolityIndexEntry[] {
-    const out: PolityIndexEntry[] = [];
+  build(): Array<Omit<PolityIndexEntry, 'c'>> {
+    const out: Array<Omit<PolityIndexEntry, 'c'>> = [];
     for (const [id, acc] of this.polities) {
       const slices = acc.slices.sort((a, b) => a.from - b.from);
       const spans: Array<[number, number]> = [];
