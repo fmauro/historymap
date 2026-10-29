@@ -1,0 +1,76 @@
+# Builds the map data and the site, then publishes it to GitHub Pages.
+# One-time setup: repository Settings → Pages → Source: "GitHub Actions".
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time; a newer push waits instead of cancelling a deploy halfway.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  TIPPECANOE_VERSION: 2.79.0
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 26
+          cache: npm
+
+      # tippecanoe has no up-to-date Ubuntu package, so build it once and keep the binaries.
+      - name: Restore tippecanoe
+        id: tippecanoe
+        uses: actions/cache@v4
+        with:
+          path: ~/tippecanoe
+          key: tippecanoe-${{ env.TIPPECANOE_VERSION }}-ubuntu-24.04
+      - name: Build tippecanoe
+        if: steps.tippecanoe.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libsqlite3-dev zlib1g-dev
+          git clone --depth 1 --branch "$TIPPECANOE_VERSION" https://github.com/felt/tippecanoe /tmp/tippecanoe-src
+          make -C /tmp/tippecanoe-src -j"$(nproc)"
+          mkdir -p ~/tippecanoe
+          cp /tmp/tippecanoe-src/tippecanoe /tmp/tippecanoe-src/tile-join ~/tippecanoe/
+      - run: echo "$HOME/tippecanoe" >> "$GITHUB_PATH"
+
+      # Source datasets (~300 MB). Kept between runs; a change to an adapter downloads them again.
+      - name: Restore downloaded datasets
+        uses: actions/cache@v4
+        with:
+          path: data/raw
+          key: raw-${{ hashFiles('scripts/sources/*.ts', 'scripts/basemap.ts') }}
+
+      - run: npm ci
+      - run: npm test
+      - run: npm run build:data
+      - run: npm run build
+
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

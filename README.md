@@ -97,12 +97,25 @@ never visible.
 
 ## Deploying
 
-`npm run build` produces a fully static `dist/` folder. Any static host that supports HTTP range
-requests works (GitHub Pages, Netlify, S3, nginx). The polity tile file is about 85 MB, so a host must allow
-files that large. Cloudflare Pages, for example, caps files at 25 MB.
+`npm run build` produces a fully static `dist/` folder (about 115 MB). Any static host that supports HTTP
+range requests works (GitHub Pages, Netlify, S3, nginx). The polity tile file is about 85 MB, so a host must
+allow files that large. Cloudflare Pages, for example, caps files at 25 MB. Paths are relative, so the site
+works at any URL path.
 
 Generated data is not committed (`public/data/` is gitignored), so a deploy pipeline needs to run
 `npm run build:data` (with tippecanoe installed) before `npm run build`.
+
+### GitHub Pages
+
+`.github/workflows/pages.yml` does all of this on every push to `main`: it builds tippecanoe, downloads the
+source datasets, runs the tests, builds the data and the site, and publishes `dist/`. tippecanoe and the
+downloads are cached between runs; the first run takes a few minutes longer.
+
+1. Create a repository on GitHub and push: `git remote add origin git@github.com:<you>/historymap.git && git push -u origin main`
+2. In the repository, open Settings → Pages and set Source to "GitHub Actions".
+3. Re-run the workflow from the Actions tab if the first push happened before step 2.
+
+The site then appears at `https://<you>.github.io/historymap/`.
 
 ## License
 
