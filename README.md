@@ -1,5 +1,9 @@
 # HistoryMap
 
+[![Deploy](https://github.com/fmauro/historymap/actions/workflows/pages.yml/badge.svg)](https://github.com/fmauro/historymap/actions/workflows/pages.yml)
+
+**Live: [fmauro.github.io/historymap](https://fmauro.github.io/historymap/)**
+
 An interactive world map of who ruled where, and when. Drag the time slider from 123,000 BCE to today
 and watch empires, kingdoms and cultures rise and fall. The focus is on history before 1000 CE.
 
